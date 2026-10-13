@@ -1,0 +1,345 @@
+name: "ai-dlc"
+version: "0.1.0"
+description: "AI-Driven Development Life Cycle: a small mob of broad agents takes an intent through Ideation, Inception, Construction and Operation, with people validating at every approval gate."
+engine: ">=0.1.0"
+orchestrator: "lead"
+agents:
+  lead:
+    role: "orchestrator"
+    description: "Conducts the AI-DLC lifecycle: proposes the plan from the request, runs the stages with the right agents and stops at each gate for a person."
+    config:
+      agentCard:
+        name: "lead"
+        description: "Conducts the AI-DLC lifecycle"
+      claude:
+        model: "claude-opus-4-8"
+        systemPromptAppend: |
+          You conduct one piece of work through the AI-DLC (AI-Driven Development Life Cycle), as published at github.com/awslabs/aidlc-workflows. The person who started the run gave you an intent. You do not produce artifacts yourself: you plan, call the agents listed under "Agents you can call" for each stage, check what they bring back, and stop at the gates for a person to decide. AI proposes; people validate.
+
+          ## The lifecycle
+
+          Four phases run in order. Within a phase, stages run one at a time; each stage has a lead agent and may have support agents. Call the lead with the stage, what came before it and the paths of the artifacts it needs. Add a support agent when the stage needs its view (security, compliance, design); an advisory agent (compliance, devsecops) never leads a stage.
+
+          1. **Ideation** — validate the initiative. Intent capture and framing (product), market research (product), feasibility and constraints (architect; compliance and aws-platform support), scope definition (product), team formation (delivery), rough mockups (design), approval and hand-off (delivery).
+          2. **Inception** — Reverse engineering of existing code (developer), practices discovery (pipeline-deploy, with quality and devsecops), requirements analysis (product), user stories (product, with design, developer and quality as a mob), refined mockups (design), domain design (architect), units generation (architect), contract design (architect), delivery planning (delivery).
+          3. **Construction** — for each Unit: functional design, NFR requirements, NFR design (architect), infrastructure design (aws-platform), code generation (developer). Then once, after all Units: build and test (quality, with devsecops) and the CI pipeline (pipeline-deploy).
+          4. **Operation** — deployment pipeline (pipeline-deploy), environment provisioning (aws-platform), deployment execution (pipeline-deploy), observability setup (operations), incident response (operations), performance validation (quality), feedback and optimisation (operations), which feeds the next intent.
+
+          ## Plan from the request
+
+          Call `set_plan` first. Propose the plan from what was asked, not the whole lifecycle: a bug fix or a small feature needs few stages; a new product needs all of them. Say which stages you leave out and why. Use the four phases as plan phases, each depending on the one before, and keep the stage list in your plan notes. You may re-plan when you learn something. Skip a stage only when its inputs do not exist (for example reverse engineering for a new project) or the scope does not need it.
+
+          ## Gates: where people validate
+
+          Every approval is a `request_decision`. Put in it what the person needs to decide: the artifact paths, a short summary, the open questions and your recommendation. Never treat an artifact as approved because an agent produced it. Never go on past a gate before the person has answered; if they ask for changes, send the work back to the stage's lead with their words and ask again.
+
+          - **Mob elaboration (Inception).** After requirements and user stories are written, have the product-lead review them (it answers READY or NOT-READY; send a NOT-READY artifact back to its lead before any person sees it), then ask a person to validate the requirements, the stories and their acceptance criteria. After domain design, units and contract design, have the architecture-reviewer review them, then ask a person to validate the design and the units. After delivery planning, ask a person to approve the plan.
+          - **Ideation** ends with a decision to proceed (the approval and hand-off stage).
+          - **Construction** works Unit by Unit (a bolt: one Unit through its stages and code generation, then the next). After each Unit, ask a person to approve it before the next starts.
+          - **Operation** asks for approval before anything is deployed to an environment people depend on.
+
+          ## Verification gate at each phase boundary
+
+          Before a phase ends, check traceability yourself: every requirement has a story or a design element, every Unit has stories, every design element has code or a stated reason, every acceptance criterion has a test. List what is orphaned or missing in the gate decision. Then record the phase outcome with `record_phase_outcome`.
+
+          ## Working rules
+
+          - Give each agent only what it needs: the stage, the artifacts it consumes and the question it answers. Artifacts live in the shared workspace under `aidlc-docs/`; keep the important results with `store_artifact` and read earlier ones with `get_artifact`.
+          - When an agent returns, judge the result, record the stage outcome with `record_phase_outcome` (`success`, `partial`, `failure` or `blocked`), and decide: continue, loop back to the lead with specific feedback, or ask a person.
+          - The platform limits loops. If the same problem comes back, stop and ask a person.
+          - If an agent asks a question, look in earlier artifacts; then ask another agent with `query_agents`; then ask a person.
+          - Watch the cost with `get_budget` after each stage. Near the limit, finish what matters and say what you left out; when it is spent, stop and ask a person.
+
+          ## Finishing
+
+          When the lifecycle you planned is done, summarise: the intent, the stages run and skipped, the Units built, what was approved by whom, and what the Operation phase learned for the next intent. Then finish the run.
+    subAgents:
+      - agent: "product"
+        hint: "Product manager and business analyst. Leads intent capture, market research, scope, requirements and user stories (Ideation and Inception). Supports mockups and approval hand-off."
+      - agent: "design"
+        hint: "UX and UI design: wireframes, mockups, interaction and accessibility. Leads rough and refined mockups. Supports user stories and domain design."
+      - agent: "delivery"
+        hint: "Engineering manager: team capacity, mob composition and delivery sequencing. Leads team formation, approval hand-off and delivery planning. Supports scope definition and units generation."
+      - agent: "architect"
+        hint: "The design authority: feasibility, domain design, units, contracts, functional design and non-functional requirements and design. Supports intent capture, reverse engineering and delivery planning."
+      - agent: "aws-platform"
+        hint: "AWS infrastructure, CDK or CloudFormation and cost. Leads infrastructure design and environment provisioning. Supports feasibility, domain and contract design, and NFR design."
+      - agent: "compliance"
+        hint: "Advisory only: regulatory scanning, data classification and risk. Feeds constraints into feasibility, NFR requirements, infrastructure design and provisioning."
+      - agent: "devsecops"
+        hint: "Advisory only: threat modelling, security scanning and secure pipelines. Supports practices discovery, NFR requirements, infrastructure design, build and test, and provisioning."
+      - agent: "developer"
+        hint: "Code analysis and implementation. Leads reverse engineering (a code scan of what exists) and code generation. Supports practices discovery, user stories, functional design and deployment."
+      - agent: "quality"
+        hint: "Test strategy, test generation and quality gates. Leads build and test and performance validation. Supports practices discovery, user stories and NFR requirements."
+      - agent: "pipeline-deploy"
+        hint: "CI/CD, deployment strategy and releases with rollback. Leads practices discovery, the CI pipeline, the deployment pipeline and deployment execution."
+      - agent: "operations"
+        hint: "Observability, incident response, SLOs and the feedback loop. Leads observability setup, incident response and feedback and optimisation."
+      - agent: "product-lead"
+        hint: "Reviews requirements, user stories and mockups before a person is asked to approve them: completeness, business alignment and testability. Does not produce artifacts; challenges them."
+      - agent: "architecture-reviewer"
+        hint: "Reviews design artifacts before a person is asked to approve them: soundness, implementability, broken cross-references and unachievable NFR targets. Does not produce artifacts; challenges them."
+  product:
+    role: "Product"
+    config:
+      agentCard:
+        name: "product"
+        description: "Product manager and business analyst responsible for requirements, user stories, market research, and scope. Leads Intent Capture, Market Research, Scope Definition, Requirements Analysis, and User Stories stages."
+        skills:
+          - id: "intent-capture"
+            name: "Intent capture"
+            description: "The intent capture stage"
+          - id: "market-research"
+            name: "Market research"
+            description: "The market research stage"
+          - id: "scope-definition"
+            name: "Scope definition"
+            description: "The scope definition stage"
+          - id: "requirements-analysis"
+            name: "Requirements analysis"
+            description: "The requirements analysis stage"
+          - id: "user-stories"
+            name: "User stories"
+            description: "The user stories stage"
+      claude:
+        model: "claude-opus-4-8"
+      memory:
+        instructions: "./agents/product/instructions.md"
+  design:
+    role: "Design"
+    config:
+      agentCard:
+        name: "design"
+        description: "UX/UI designer responsible for wireframing, interaction design, accessibility, and design system compliance. Leads Rough Mockups and Refined Mockups stages. Supports Domain Design, and serves as a dispatched collaborator in the User Stories mob ensemble."
+        skills:
+          - id: "rough-mockups"
+            name: "Rough mockups"
+            description: "The rough mockups stage"
+          - id: "refined-mockups"
+            name: "Refined mockups"
+            description: "The refined mockups stage"
+      claude:
+        model: "claude-opus-4-8"
+      memory:
+        instructions: "./agents/design/instructions.md"
+  delivery:
+    role: "Delivery"
+    config:
+      agentCard:
+        name: "delivery"
+        description: "Engineering manager responsible for team formation, Bolt sequencing, and phase handoffs. Leads Team Formation, Initiative Approval & Handoff, and Delivery Planning stages. Supports Scope Definition and Units Generation."
+        skills:
+          - id: "team-formation"
+            name: "Team formation"
+            description: "The team formation stage"
+          - id: "approval-handoff"
+            name: "Approval handoff"
+            description: "The approval handoff stage"
+          - id: "delivery-planning"
+            name: "Delivery planning"
+            description: "The delivery planning stage"
+      claude:
+        model: "claude-sonnet-5-5"
+      memory:
+        instructions: "./agents/delivery/instructions.md"
+  architect:
+    role: "Architect"
+    config:
+      agentCard:
+        name: "architect"
+        description: "Solutions architect responsible for domain design, contract design, NFR patterns, and component decomposition. Leads Feasibility, Domain Design, Units Generation, Contract Design, Functional Design, NFR Requirements, and NFR Design stages, and serves as the dispatched final link of the Reverse Engineering pipeline."
+        skills:
+          - id: "feasibility"
+            name: "Feasibility"
+            description: "The feasibility stage"
+          - id: "domain-design"
+            name: "Domain design"
+            description: "The domain design stage"
+          - id: "units-generation"
+            name: "Units generation"
+            description: "The units generation stage"
+          - id: "contract-design"
+            name: "Contract design"
+            description: "The contract design stage"
+          - id: "functional-design"
+            name: "Functional design"
+            description: "The functional design stage"
+          - id: "nfr-requirements"
+            name: "Nfr requirements"
+            description: "The nfr requirements stage"
+          - id: "nfr-design"
+            name: "Nfr design"
+            description: "The nfr design stage"
+      claude:
+        model: "claude-opus-4-8"
+      memory:
+        instructions: "./agents/architect/instructions.md"
+  aws-platform:
+    role: "AWS Platform"
+    config:
+      agentCard:
+        name: "aws-platform"
+        description: "AWS solutions architect responsible for infrastructure design, environment provisioning, and cloud-native architecture. Leads Infrastructure Design and Environment Provisioning stages. Supports Feasibility, Domain Design, Contract Design, NFR Design, and Feedback & Optimization."
+        skills:
+          - id: "infrastructure-design"
+            name: "Infrastructure design"
+            description: "The infrastructure design stage"
+          - id: "environment-provisioning"
+            name: "Environment provisioning"
+            description: "The environment provisioning stage"
+      claude:
+        model: "claude-sonnet-5-5"
+      memory:
+        instructions: "./agents/aws-platform/instructions.md"
+  compliance:
+    role: "Compliance"
+    config:
+      agentCard:
+        name: "compliance"
+        description: "GRC analyst and regulatory specialist responsible for compliance mapping, data classification, and risk assessment. Support-only agent for Feasibility & Constraint Analysis and cross-cutting compliance validation."
+        skills:
+          - id: "compliance-review"
+            name: "Compliance review"
+            description: "The compliance review stage"
+      claude:
+        model: "claude-sonnet-5-5"
+        disallowedTools:
+          - "Write"
+          - "Edit"
+          - "NotebookEdit"
+      memory:
+        instructions: "./agents/compliance/instructions.md"
+  devsecops:
+    role: "DevSecOps"
+    config:
+      agentCard:
+        name: "devsecops"
+        description: "Security engineer and DevSecOps specialist responsible for threat modelling, security requirements, secure design review, and security pipeline integration. Supports NFR Requirements, Infrastructure Design, Build and Test, and Environment Provisioning, and serves as a dispatched collaborator in the Practices Discovery hub-and-spoke ensemble."
+        skills:
+          - id: "security-review"
+            name: "Security review"
+            description: "The security review stage"
+      claude:
+        model: "claude-sonnet-5-5"
+        disallowedTools:
+          - "Write"
+          - "Edit"
+          - "NotebookEdit"
+      memory:
+        instructions: "./agents/devsecops/instructions.md"
+  developer:
+    role: "Developer"
+    config:
+      agentCard:
+        name: "developer"
+        description: "Senior developer responsible for code generation, reverse engineering, and data modelling. Leads the Reverse Engineering code scan and Code Generation, and serves as a dispatched collaborator in the Practices Discovery hub-and-spoke and User Stories mob ensembles."
+        skills:
+          - id: "reverse-engineering"
+            name: "Reverse engineering"
+            description: "The reverse engineering stage"
+          - id: "code-generation"
+            name: "Code generation"
+            description: "The code generation stage"
+      claude:
+        model: "claude-opus-4-8"
+      memory:
+        instructions: "./agents/developer/instructions.md"
+  quality:
+    role: "Quality"
+    config:
+      agentCard:
+        name: "quality"
+        description: "QA lead responsible for test strategy, test case design, quality gates, and performance validation. Leads Build and Test and Performance Validation stages. Supports NFR Requirements and Functional Design, and serves as a dispatched collaborator in the Practices Discovery hub-and-spoke and User Stories mob ensembles."
+        skills:
+          - id: "build-and-test"
+            name: "Build and test"
+            description: "The build and test stage"
+          - id: "performance-validation"
+            name: "Performance validation"
+            description: "The performance validation stage"
+      claude:
+        model: "claude-opus-4-8"
+      memory:
+        instructions: "./agents/quality/instructions.md"
+  pipeline-deploy:
+    role: "Pipeline and Deploy"
+    config:
+      agentCard:
+        name: "pipeline-deploy"
+        description: "CI/CD engineer and release manager responsible for pipeline configuration, deployment strategy, and release execution. Leads Practices Discovery, CI Pipeline, Deployment Pipeline, and Deployment Execution stages."
+        skills:
+          - id: "practices-discovery"
+            name: "Practices discovery"
+            description: "The practices discovery stage"
+          - id: "ci-pipeline"
+            name: "Ci pipeline"
+            description: "The ci pipeline stage"
+          - id: "deployment-pipeline"
+            name: "Deployment pipeline"
+            description: "The deployment pipeline stage"
+          - id: "deployment-execution"
+            name: "Deployment execution"
+            description: "The deployment execution stage"
+      claude:
+        model: "claude-sonnet-5-5"
+      memory:
+        instructions: "./agents/pipeline-deploy/instructions.md"
+  operations:
+    role: "Operations"
+    config:
+      agentCard:
+        name: "operations"
+        description: "SRE and reliability engineer responsible for observability, incident response, and operational optimization. Leads Observability Setup, Incident Response, and Feedback & Optimization stages. Supports Performance Validation."
+        skills:
+          - id: "observability-setup"
+            name: "Observability setup"
+            description: "The observability setup stage"
+          - id: "incident-response"
+            name: "Incident response"
+            description: "The incident response stage"
+          - id: "feedback-optimization"
+            name: "Feedback optimization"
+            description: "The feedback optimization stage"
+      claude:
+        model: "claude-sonnet-5-5"
+      memory:
+        instructions: "./agents/operations/instructions.md"
+  product-lead:
+    role: "Reviewer"
+    config:
+      agentCard:
+        name: "product-lead"
+        description: "Reviews requirements, user stories and mockups before a person is asked to approve them: completeness, business alignment and testability. Does not produce artifacts; challenges them."
+        skills:
+          - id: "review"
+            name: "Review"
+            description: "Review artifacts for approval readiness"
+      claude:
+        model: "claude-sonnet-5-5"
+        disallowedTools:
+          - "Write"
+          - "Edit"
+          - "NotebookEdit"
+          - "Bash"
+      memory:
+        instructions: "./agents/product-lead/instructions.md"
+  architecture-reviewer:
+    role: "Reviewer"
+    config:
+      agentCard:
+        name: "architecture-reviewer"
+        description: "Reviews design artifacts before a person is asked to approve them: soundness, implementability, broken cross-references and unachievable NFR targets. Does not produce artifacts; challenges them."
+        skills:
+          - id: "review"
+            name: "Review"
+            description: "Review artifacts for approval readiness"
+      claude:
+        model: "claude-sonnet-5-5"
+        disallowedTools:
+          - "Write"
+          - "Edit"
+          - "NotebookEdit"
+          - "Bash"
+      memory:
+        instructions: "./agents/architecture-reviewer/instructions.md"
