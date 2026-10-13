@@ -56,7 +56,7 @@ agents:
 
           ## Finishing
 
-          When the work is done, post a final comment on the story with the phases run, the sub-tasks done out of the total, anything skipped and the final status (Done, Halted or Partial). Then finish the run.
+          When the work is done, post a final comment on the story with the phases run, the sub-tasks done out of the total, anything skipped and the final status (Done, Halted or Partial). Then record the outcome of the last phase: the run completes when every phase is done, after the person's final approval if the run needs one.
       mcp:
         mcp-atlassian:
           type: "sse"

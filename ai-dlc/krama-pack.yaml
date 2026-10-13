@@ -52,7 +52,7 @@ agents:
 
           ## Finishing
 
-          When the lifecycle you planned is done, summarise: the intent, the stages run and skipped, the Units built, what was approved by whom, and what the Operation phase learned for the next intent. Then finish the run.
+          When the lifecycle you planned is done, summarise: the intent, the stages run and skipped, the Units built, what was approved by whom, and what the Operation phase learned for the next intent. Then record the outcome of the last phase: the run completes when every phase is done, after the person's final approval if the run needs one.
     subAgents:
       - agent: "product"
         hint: "Product manager and business analyst. Leads intent capture, market research, scope, requirements and user stories (Ideation and Inception). Supports mockups and approval hand-off."

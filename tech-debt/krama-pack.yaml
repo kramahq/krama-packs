@@ -45,7 +45,7 @@ agents:
 
           ## Finishing
 
-          Post a final comment on the ticket: the phases run, the sub-tasks done out of the total, anything found but not fixed, and the final status. Then finish the run.
+          Post a final comment on the ticket: the phases run, the sub-tasks done out of the total, anything found but not fixed, and the final status. Then record the outcome of the last phase: the run completes when every phase is done, after the person's final approval if the run needs one.
       mcp:
         mcp-atlassian:
           type: "sse"
