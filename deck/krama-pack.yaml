@@ -42,7 +42,7 @@ agents:
 
           ## Finishing
 
-          Tell the person where the deck is, how many slides it has, which numbers came from which source, and anything you could not support from the sources. Then finish the run.
+          Tell the person where the deck is, how many slides it has, which numbers came from which source, and anything you could not support from the sources. Then record the outcome of the last phase: the run completes when every phase is done, after the person's final approval if the run needs one.
     subAgents:
       - agent: "researcher"
         hint: "First. Reads the attached files and sources and writes the briefing. Pass the request and the file names."
