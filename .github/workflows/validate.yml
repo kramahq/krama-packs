@@ -1,0 +1,39 @@
+name: validate
+# Paused like the other repositories (see kramahq/krama's ci.yml): the job is skipped unless the repository variable
+# CI_ENABLED is 'true' or the workflow is started by hand. Run the same check locally with `krama pack validate .`.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: ${{ vars.CI_ENABLED == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The command that checks the packs is built from Krama's main until `kramahq` is published.
+      - uses: actions/checkout@v4
+        with:
+          repository: kramahq/krama
+          path: .krama
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: .krama/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+        working-directory: .krama
+      - run: pnpm exec turbo run build --filter=kramahq...
+        working-directory: .krama
+      # --online fetches the agents the packs take from other repositories, at their pinned commits, and checks those too.
+      - run: node .krama/apps/cli/dist/main.js pack validate . --online
